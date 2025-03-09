@@ -66,6 +66,7 @@ impl<B> Needleman for B where B: Blosum + Default {}
 mod tests {
   use super::*;
 
+  use lib_genome_kit::genome::Genome;
   // we only test with `Blosum62` as of now...
   use lib_genome_kit::blosum::Blosum62;
 
