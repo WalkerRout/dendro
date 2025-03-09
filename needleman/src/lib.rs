@@ -1,50 +1,53 @@
-use std::collections::HashMap;
-
 use lib_genome_kit::amino::AminoAcid;
 use lib_genome_kit::blosum::Blosum;
 
-/// Eay optimization opportunities here, we use a recursive take/skip approach,
-/// but a bottom-up DP table could speedup the entire search drastically...
+/// We invert the original recursive problem, starting with the base cases (gaps)
+/// in the lowest levels (first row/col) and work our way up from smaller solutions
+/// to a bigger ones
 ///
 /// - https://www.cs.otago.ac.nz/cosc348/alignments/Lecture05_GlobalAlignment.pdf
 /// - https://www.ncbi.nlm.nih.gov/nuccore/NC_050012.1?report=fasta
-fn align_recurse(
+fn align_dp_table(
   seq_a: &[AminoAcid],
   seq_b: &[AminoAcid],
-  pos @ (i, j): (usize, usize),
   gap_penalty: i32,
   table: &impl Blosum,
-  cache: &mut HashMap<(usize, usize), i32>,
 ) -> i32 {
-  // take/skip rationale:
-  // at any given moment, we want to handle 3 cases;
-  // - we want to take both bases
-  // - we want to skip one of seq_a
-  // - we want to skip one of seq_b
+  let m = seq_a.len();
+  let n = seq_b.len();
 
-  // base cases;
-  // when we exceeded the length, we pad rest of remaining sequence with the gap
-  if i >= seq_a.len() {
-    return (seq_b.len().saturating_sub(j) as i32) * gap_penalty;
+  // m+1 rows and n+1 cols to represent 0 elements in either sequence...
+  let mut dp = vec![0; (m + 1) * (n + 1)];
+  // lil helper to compute index in 1d dp vector, take care to use real width
+  let idx = |i: usize, j: usize| i * (n + 1) + j;
+
+  // aligning an empty sequence with a not empty sequence incurs a cumulative
+  // gap penalty, this is our lowest level (base case)
+  for i in 0..=m {
+    // rows corresponds to seq_a
+    dp[idx(i, 0)] = (i as i32) * gap_penalty;
   }
-  if j >= seq_b.len() {
-    return (seq_a.len().saturating_sub(i) as i32) * gap_penalty;
+  for j in 0..=n {
+    // cols correspond to seq_b
+    dp[idx(0, j)] = (j as i32) * gap_penalty;
   }
 
-  // fetch from cache
-  if let Some(score) = cache.get(&pos).copied() {
-    return score;
+  // start above gaps (1..), each cell dp[i][j] represents best alignment score for
+  // prefixes seq_a[0..i] and seq_b[0..j]
+  for i in 1..=m {
+    for j in 1..=n {
+      // identical to recursive solution, just upside down
+      let score = table.score(seq_a[i - 1], seq_b[j - 1]);
+      let diag = dp[idx(i - 1, j - 1)] + score;
+      let up = dp[idx(i - 1, j)] + gap_penalty;
+      let left = dp[idx(i, j - 1)] + gap_penalty;
+      // we depend on diagonal, cell above, cell to left
+      dp[idx(i, j)] = diag.max(up).max(left);
+    }
   }
 
-  // now we take 3 paths, and choose the best...
-  let score = table.score(seq_a[i], seq_b[j]);
-  let both = align_recurse(seq_a, seq_b, (i + 1, j + 1), gap_penalty, table, cache) + score;
-  let skip_b = align_recurse(seq_a, seq_b, (i + 1, j), gap_penalty, table, cache) + gap_penalty;
-  let skip_a = align_recurse(seq_a, seq_b, (i, j + 1), gap_penalty, table, cache) + gap_penalty;
-  let best_so_far = both.max(skip_b).max(skip_a);
-  // insert our result so far into the cache, we will probably be here again...
-  cache.insert(pos, best_so_far);
-  best_so_far
+  // bottom right holds best alignment score...
+  dp[idx(m, n)]
 }
 
 /// We want to be able to run the needleman-wunsch algorithm on any of the tables,
@@ -54,8 +57,7 @@ pub trait Needleman: Blosum {
   where
     Self: Default,
   {
-    let mut cache = HashMap::new();
-    align_recurse(seq_a, seq_b, (0, 0), -5, &Self::default(), &mut cache)
+    align_dp_table(seq_a, seq_b, -5, &Self::default())
   }
 }
 

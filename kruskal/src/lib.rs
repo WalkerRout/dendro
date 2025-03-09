@@ -242,8 +242,7 @@ where
     if n == 0 {
       return None;
     }
-    let initial_clusters = create_initial_clusters(names);
-    let mut manager = ClusterManager::new(initial_clusters);
+    let mut manager = ClusterManager::new(create_initial_clusters(names));
     let mut heap = compute_edges(&genomes);
 
     while let Some(edge) = heap.pop() {
