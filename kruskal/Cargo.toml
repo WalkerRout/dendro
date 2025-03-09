@@ -1,0 +1,13 @@
+[package]
+name = "lib-kruskal"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rayon = "1.10.0"
+
+[dependencies.lib-needleman]
+path = "../needleman"
+
+[dependencies.lib-genome-kit]
+path = "../genome-kit"

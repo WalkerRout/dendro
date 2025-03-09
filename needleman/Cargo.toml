@@ -1,0 +1,7 @@
+[package]
+name = "lib-needleman"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies.lib-genome-kit]
+path = "../genome-kit"

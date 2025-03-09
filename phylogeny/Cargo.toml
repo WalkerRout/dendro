@@ -1,0 +1,15 @@
+[package]
+name = "phylogeny"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+serde = "1.0.218"
+serde_json = "1.0.140"
+
+[dependencies.lib-kruskal]
+path = "../kruskal"
+
+[dependencies.lib-genome-kit]
+path = "../genome-kit"
