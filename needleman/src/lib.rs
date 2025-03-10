@@ -53,6 +53,7 @@ fn align_dp_table(
 /// We want to be able to run the needleman-wunsch algorithm on any of the tables,
 /// and blosum tables are all kinda the same, so we just default implement it...
 pub trait Needleman: Blosum {
+  #[inline]
   fn needleman_wunsch(seq_a: &[AminoAcid], seq_b: &[AminoAcid]) -> i32
   where
     Self: Default,

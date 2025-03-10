@@ -75,7 +75,7 @@ fn write_graph_to_file(graph_dot: String) -> Result<(), anyhow::Error> {
 }
 
 fn main() -> Result<(), anyhow::Error> {
-  let species = load_species_from_file("all_organisms.json")?;
+  let species = load_species_from_file("pull-species/cox3_translations.json")?;
   // the root `Cluster` represents a dendrogram with all species...
   let dendrogram = species.cluster().context("no graph found")?;
   let graph = emit_graphviz(dendrogram);
