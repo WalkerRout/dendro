@@ -82,6 +82,7 @@ impl UnionFind {
   /// Finds the representative of the set containing `x` using path compression
   fn find(&mut self, x: ClusterId) -> ClusterId {
     let idx = x.index();
+    // implicit base case (this new parent) follows path compression mutation
     if self.parent[idx] != x {
       self.parent[idx] = self.find(self.parent[idx]);
     }
@@ -100,14 +101,15 @@ impl UnionFind {
     let x_idx = x_root.index();
     let y_idx = y_root.index();
 
+    // which tree is deeper?
     match self.rank[x_idx].cmp(&self.rank[y_idx]) {
       Ordering::Less => {
         self.parent[x_idx] = y_root;
       }
-      Ordering::Equal => {
+      Ordering::Greater => {
         self.parent[y_idx] = x_root;
       }
-      Ordering::Greater => {
+      Ordering::Equal => {
         self.parent[y_idx] = x_root;
         self.rank[x_idx] += 1;
       }
@@ -175,10 +177,7 @@ struct ClusterManager<T> {
   cluster_map: Vec<ClusterId>,
 }
 
-impl<T> ClusterManager<T>
-where
-  T: Clone,
-{
+impl<T> ClusterManager<T> {
   fn new(initial_clusters: Vec<Cluster<T>>) -> Self {
     let n = initial_clusters.len();
     Self {
@@ -214,7 +213,10 @@ where
 
   /// Produces the root (final merged) cluster
   #[inline]
-  fn root(&self) -> Option<Cluster<T>> {
+  fn root(&self) -> Option<Cluster<T>>
+  where
+    T: Clone,
+  {
     self
       .cluster_map
       .first()
