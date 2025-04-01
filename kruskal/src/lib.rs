@@ -240,10 +240,10 @@ where
 
   fn cluster(self) -> Option<Cluster<Self::Leaf>> {
     let (names, genomes) = self.part();
-    let n = names.len();
-    if n == 0 {
+    if names.is_empty() {
       return None;
     }
+    
     let mut manager = ClusterManager::new(create_initial_clusters(names));
     let mut heap = compute_edges(&genomes);
 
