@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # completely unnecessary tests to try out magicmock...
+=======
+# totally unnecessary tests but i wanna test out magicmock
+>>>>>>> 087b68c3ea25b385887ebe86b9dfdf6e9a1d2d6b
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 
 from unittest.mock import patch, MagicMock

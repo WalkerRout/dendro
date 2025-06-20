@@ -1,4 +1,5 @@
 /// All relevant amino acids...
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AminoAcid {
   Alanine,       // A

@@ -237,10 +237,17 @@ where
 
   fn cluster(self) -> Option<Cluster<Self::Leaf>> {
     let (names, genomes) = self.part();
+<<<<<<< HEAD
     if names.is_empty() || genomes.is_empty() {
       return None;
     }
 
+=======
+    if names.is_empty() {
+      return None;
+    }
+    
+>>>>>>> 087b68c3ea25b385887ebe86b9dfdf6e9a1d2d6b
     let mut manager = ClusterManager::new(create_initial_clusters(names));
     let mut heap = compute_edges(&genomes);
 
