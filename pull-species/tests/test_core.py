@@ -1,4 +1,4 @@
-
+# completely unnecessary tests to try out magicmock...
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 
 from unittest.mock import patch, MagicMock

@@ -70,7 +70,6 @@ def extract_cox3(species_name):
   @returns (str|None): The COX3 sequence for the provided species, or None if not
     found
   """
-
   gene_name = "COX3"
   accession_ids = search_species_sequences(species_name, gene_name)
 

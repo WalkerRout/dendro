@@ -65,53 +65,52 @@ pub enum Cluster<T> {
   },
 }
 
-/// A simple union–find (disjoint set) implementation
+/// A simple union–find (disjoint set) implementation using negative parent values to encode set size.
 struct UnionFind {
-  parent: Vec<ClusterId>,
-  rank: Vec<usize>,
+  parent: Vec<isize>, // root: –size, otherwise: index of parent
 }
 
 impl UnionFind {
+  /// Creates a new UnionFind with `n` singleton sets
   fn new(n: usize) -> Self {
-    Self {
-      parent: (0..n).map(ClusterId).collect(),
-      rank: vec![0; n],
+    UnionFind {
+      parent: vec![-1; n], // each element is its own root of size 1
     }
   }
 
-  /// Finds the representative of the set containing `x` using path compression
+  /// Finds the representative of the set containing `x`, with path compression
   fn find(&mut self, x: ClusterId) -> ClusterId {
     let idx = x.index();
-    if self.parent[idx] != x {
-      self.parent[idx] = self.find(self.parent[idx]);
+    if self.parent[idx] < 0 {
+      x
+    } else {
+      // this is the final root of the cluster
+      let root = self.find(ClusterId(self.parent[idx] as usize));
+      self.parent[idx] = root.index() as isize;
+      root
     }
-    self.parent[idx]
   }
 
-  /// Unites the sets that contain `x` and `y` (if they are disjoint), returns
-  /// `true` if a union occurred
-  fn union(&mut self, x: ClusterId, y: ClusterId) -> bool {
-    let x_root = self.find(x);
-    let y_root = self.find(y);
-    if x_root == y_root {
+  /// Unites the sets containing `a` and `b`, returns whether or not a union
+  /// occurred
+  fn union(&mut self, a: ClusterId, b: ClusterId) -> bool {
+    let ra = self.find(a);
+    let rb = self.find(b);
+    if ra == rb {
       return false;
     }
 
-    let x_idx = x_root.index();
-    let y_idx = y_root.index();
+    // pick the root with the more negative parent (bigger size)
+    let (big, small) = {
+      let pa = self.parent[ra.index()];
+      let pb = self.parent[rb.index()];
+      if pa <= pb { (ra, rb) } else { (rb, ra) }
+    };
 
-    match self.rank[x_idx].cmp(&self.rank[y_idx]) {
-      Ordering::Less => {
-        self.parent[x_idx] = y_root;
-      }
-      Ordering::Equal => {
-        self.parent[y_idx] = x_root;
-      }
-      Ordering::Greater => {
-        self.parent[y_idx] = x_root;
-        self.rank[x_idx] += 1;
-      }
-    }
+    let bi = big.index();
+    let si = small.index();
+    self.parent[bi] += self.parent[si]; // combine sizes
+    self.parent[si] = bi as isize; // attach smaller tree under big
 
     true
   }
@@ -175,10 +174,7 @@ struct ClusterManager<T> {
   cluster_map: Vec<ClusterId>,
 }
 
-impl<T> ClusterManager<T>
-where
-  T: Clone,
-{
+impl<T> ClusterManager<T> {
   fn new(initial_clusters: Vec<Cluster<T>>) -> Self {
     let n = initial_clusters.len();
     Self {
@@ -214,7 +210,10 @@ where
 
   /// Produces the root (final merged) cluster
   #[inline]
-  fn root(&self) -> Option<Cluster<T>> {
+  fn root(&self) -> Option<Cluster<T>>
+  where
+    T: Clone,
+  {
     self
       .cluster_map
       .first()
@@ -238,10 +237,10 @@ where
 
   fn cluster(self) -> Option<Cluster<Self::Leaf>> {
     let (names, genomes) = self.part();
-    let n = names.len();
-    if n == 0 {
+    if names.is_empty() || genomes.is_empty() {
       return None;
     }
+
     let mut manager = ClusterManager::new(create_initial_clusters(names));
     let mut heap = compute_edges(&genomes);
 
@@ -296,6 +295,79 @@ fn compute_edges(genomes: &[Genome]) -> BinaryHeap<Edge> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  mod union_find {
+    use super::*;
+
+    #[test]
+    fn new_every_element_is_its_own_root() {
+      let mut uf = UnionFind::new(5);
+      for i in 0..5 {
+        let id = ClusterId(i);
+        assert_eq!(uf.find(id), id);
+      }
+    }
+
+    #[test]
+    fn union_connects_two_elements() {
+      let mut uf = UnionFind::new(3);
+      let a = ClusterId(0);
+      let b = ClusterId(1);
+      // initially separate
+      assert_ne!(uf.find(a), uf.find(b));
+      // union returns true on first union
+      assert!(uf.union(a, b));
+      // now they share the same root
+      let ra = uf.find(a);
+      let rb = uf.find(b);
+      assert_eq!(ra, rb);
+    }
+
+    #[test]
+    fn union_returns_false_when_already_connected() {
+      let mut uf = UnionFind::new(4);
+      let x = ClusterId(2);
+      let y = ClusterId(3);
+      assert!(uf.union(x, y));
+      assert!(!uf.union(x, y));
+      // connecting through a third element still returns false if already in same set
+      let z = ClusterId(1);
+      assert!(uf.union(y, z));
+      assert!(!uf.union(x, z));
+    }
+
+    #[test]
+    fn transitive_union_merges_multiple_sets() {
+      let mut uf = UnionFind::new(5);
+      let a = ClusterId(0);
+      let b = ClusterId(1);
+      let c = ClusterId(2);
+      assert!(uf.union(a, b));
+      // a and b now together, c separate
+      assert_eq!(uf.find(a), uf.find(b));
+      assert_ne!(uf.find(a), uf.find(c));
+      // connect b and c, which should also connect a to c
+      assert!(uf.union(b, c));
+      let root = uf.find(a);
+      assert_eq!(root, uf.find(b));
+      assert_eq!(root, uf.find(c));
+    }
+
+    #[test]
+    fn disjoint_sets_remain_separate() {
+      let mut uf = UnionFind::new(6);
+      let a = ClusterId(0);
+      let b = ClusterId(1);
+      let c = ClusterId(2);
+      let d = ClusterId(3);
+      // build two disjoint pairs: 0,1 and 2,3
+      assert!(uf.union(a, b));
+      assert!(uf.union(c, d));
+      // ensure no cross connection
+      assert_ne!(uf.find(a), uf.find(c));
+      assert_ne!(uf.find(b), uf.find(d));
+    }
+  }
 
   mod kruskal {
     use super::*;
